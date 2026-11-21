@@ -159,6 +159,20 @@ Suggested click-through. Do not delete `K184206` (the house keys) if you still n
 6. Delete that new item, not a seeded one.
 7. Log out and show that `/desk` returns you to sign-in.
 
+### Cover photos and staff pages
+
+Staff can optionally add one JPEG, PNG, or WebP photo (up to 2 MB) when
+logging or editing an item. Photos are stored with the item in MongoDB and
+appear on the student cards and the staff item table. An older item without a
+photo shows its category instead. Students can use category shortcuts and
+view photos only while the item is awaiting collection.
+
+The staff sidebar links to **Items**, **Users**, and **Categories**. Items
+supports the existing search and editing workflow. Users lists accounts by
+name and role. Categories lists the current catalogue and item counts, with
+links to filter the list. Account and category definitions are read-only in
+these screens.
+
 ### Use of the RESTful CRUD services
 
 No login is required. The commands assume port **8099**. Paste them into column K of the presentation sheet before class. Do not type them live.

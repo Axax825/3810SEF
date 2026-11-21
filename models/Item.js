@@ -20,6 +20,8 @@ const itemSchema = new mongoose.Schema(
     foundOn: { type: Date, required: true },
     spot: { type: String, default: "", maxlength: 80 },
     description: { type: String, default: "", maxlength: 280 },
+    coverBytes: { type: Buffer, select: false },
+    coverType: { type: String },
     loggedBy: { type: String, enum: ["Staff", "Student"], default: "Staff" },
   },
   { timestamps: true }

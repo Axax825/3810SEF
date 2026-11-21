@@ -22,6 +22,7 @@ const express = require("express");
 const session = require("express-session");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const { readCoverUpload } = require("./models/coverUpload");
 
 const User = require("./models/User");
 const Item = require("./models/Item");
@@ -124,6 +125,7 @@ function loginView(res, status, error) {
 function viewItem(doc, student) {
   const view = presentItem(doc);
   if (student) view.spot = "";
+  view.hasCover = Boolean(doc.coverType);
   return view;
 }
 
@@ -241,6 +243,30 @@ app.post("/logout", (req, res) => {
   });
 });
 
+app.get("/manage/users", requireStaff, async (req, res, next) => {
+  try {
+    const q = cleanText(req.query.q, 40).toLowerCase();
+    const users = await User.find().select("username displayName role").sort({ username: 1 }).lean();
+    const rows = users.filter((row) => [row.username, row.displayName].some((name) =>
+      name && name.toLowerCase().includes(q)
+    ));
+    res.render("manage", { title: "User management", section: "users", rows, q });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/manage/categories", requireStaff, async (req, res, next) => {
+  try {
+    const counts = await Item.aggregate([{ $group: { _id: "$category", count: { $sum: 1 } } }]);
+    const byCategory = new Map(counts.map(({ _id, count }) => [_id, count]));
+    const rows = CATEGORIES.map((category) => ({ category, count: byCategory.get(category) ?? 0 }));
+    res.render("manage", { title: "Category management", section: "categories", rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.get("/desk", requireLogin, async (req, res, next) => {
   try {
     const student = isStudent(req);
@@ -268,9 +294,10 @@ app.get("/desk/new", requireStaff, (req, res) => {
   });
 });
 
-app.post("/desk", requireStaff, async (req, res, next) => {
+app.post("/desk", requireStaff, readCoverUpload, async (req, res, next) => {
   try {
     const { data, errors } = parseItemInput(req.body, "create");
+    if (req.coverError) errors.unshift(req.coverError);
     if (errors.length) {
       return res.status(400).render("edit", {
         title: "Log item",
@@ -282,7 +309,7 @@ app.post("/desk", requireStaff, async (req, res, next) => {
     }
     data.code = await uniqueCode(data.category);
     data.loggedBy = "Staff";
-    await Item.create(data);
+    await Item.create({ ...data, ...req.cover });
     setFlash(req, `${data.name} is logged as ${data.code}.`);
     return res.redirect("/desk");
   } catch (err) {
@@ -296,6 +323,19 @@ app.post("/desk", requireStaff, async (req, res, next) => {
       });
     }
     return next(err);
+  }
+});
+
+app.get("/desk/:code/cover", requireLogin, async (req, res, next) => {
+  try {
+    const filter = { code: req.params.code.toUpperCase() };
+    if (isStudent(req)) filter.status = "stored";
+    const item = await Item.findOne(filter).select("coverType +coverBytes");
+    if (!item?.coverBytes || !item.coverType) return res.sendStatus(404);
+    res.set({ "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" });
+    return res.type(item.coverType).send(item.coverBytes);
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -323,7 +363,7 @@ app.get("/desk/:code/edit", requireStaff, async (req, res, next) => {
   try {
     const item = await Item.findOne({ code: req.params.code.toUpperCase() });
     if (!item) return res.redirect("/desk");
-    const view = presentItem(item);
+    const view = viewItem(item, false);
     return res.render("edit", {
       title: `Edit ${view.name}`,
       mode: "edit",
@@ -336,23 +376,28 @@ app.get("/desk/:code/edit", requireStaff, async (req, res, next) => {
   }
 });
 
-app.post("/desk/:code/update", requireStaff, async (req, res, next) => {
+app.post("/desk/:code/update", requireStaff, readCoverUpload, async (req, res, next) => {
   try {
     const code = req.params.code.toUpperCase();
     const existing = await Item.findOne({ code });
     if (!existing) return res.redirect("/desk");
     const { data, errors } = parseItemInput(req.body, "create");
+    if (req.coverError) errors.unshift(req.coverError);
     if (errors.length) {
       return res.status(400).render("edit", {
         title: `Edit ${existing.name}`,
         mode: "edit",
         action: `/desk/${code}/update`,
         error: errors[0],
-        values: { ...presentItem(existing), ...req.body, code },
+        values: { ...viewItem(existing, false), ...req.body, code, hasCover: Boolean(existing.coverType) },
       });
     }
     data.loggedBy = existing.loggedBy;
-    await Item.updateOne({ code }, { $set: data });
+    const update = { $set: { ...data, ...req.cover } };
+    if (!req.cover && req.body.removeCover === "1") {
+      update.$unset = { coverBytes: 1, coverType: 1 };
+    }
+    await Item.updateOne({ code }, update);
     setFlash(req, `${data.name} was updated.`);
     return res.redirect(`/desk/${code}`);
   } catch (err) {
