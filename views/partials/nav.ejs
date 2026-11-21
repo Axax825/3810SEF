@@ -1,0 +1,18 @@
+<header class="topbar">
+  <a class="brand" href="/desk">
+    <span class="mark" aria-hidden="true"></span>
+    Lost Desk
+  </a>
+  <nav class="topnav" aria-label="Desk">
+    <% if (user.role === "student") { %>
+      <a href="/desk">Waiting</a>
+    <% } else { %>
+      <a href="/desk">Shelf</a>
+      <a class="btn btn-small" href="/desk/new">Log item</a>
+    <% } %>
+    <form class="logout" action="/logout" method="post">
+      <span class="who"><%= user.displayName %></span>
+      <button type="submit">Log out</button>
+    </form>
+  </nav>
+</header>

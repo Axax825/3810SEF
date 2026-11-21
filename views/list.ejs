@@ -1,0 +1,108 @@
+<%- include("partials/head") %>
+<%- include("partials/nav") %>
+<main class="wrap">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow"><%= student ? "Student view" : "Lost property shelf" %></p>
+      <h1><%= student ? "Waiting to be claimed" : "On the desk" %></h1>
+    </div>
+    <% if (!student) { %><a class="btn" href="/desk/new">Log item</a><% } %>
+  </header>
+
+  <% if (flash) { %><p class="banner" role="status"><%= flash %></p><% } %>
+
+  <% if (student) { %>
+    <%- include("partials/contact") %>
+    <section class="stats stats-one" aria-label="Waiting items">
+      <article>
+        <strong><%= stats.stored %></strong>
+        <span>Waiting to be claimed</span>
+      </article>
+    </section>
+  <% } else { %>
+    <section class="stats" aria-label="Shelf summary">
+      <article>
+        <strong><%= stats.stored %></strong>
+        <span>Stored</span>
+      </article>
+      <article class="stat-claimed">
+        <strong><%= stats.claimed %></strong>
+        <span>Claimed</span>
+      </article>
+      <article class="stat-gone">
+        <strong><%= stats.disposed %></strong>
+        <span>Cleared</span>
+      </article>
+    </section>
+  <% } %>
+
+  <form class="filters<%= student ? " filters-student" : "" %>" method="get" action="/desk">
+    <div class="field">
+      <label for="q">Name or note</label>
+      <input id="q" name="q" value="<%= search.q %>" placeholder="House keys, red fob, or K184206">
+    </div>
+    <div class="field">
+      <label for="category">Category</label>
+      <select id="category" name="category">
+        <option value="">Any</option>
+        <% CATEGORIES.forEach(function (c) { %>
+          <option value="<%= c %>" <%= search.category === c ? "selected" : "" %>><%= categoryLabel(c) %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="field">
+      <label for="place">Found at</label>
+      <select id="place" name="place">
+        <option value="">Any</option>
+        <% PLACES.forEach(function (p) { %>
+          <option value="<%= p %>" <%= search.place === p ? "selected" : "" %>><%= placeLabel(p) %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="field">
+      <label for="campus">Campus</label>
+      <select id="campus" name="campus">
+        <option value="">Any</option>
+        <% CAMPUSES.forEach(function (c) { %>
+          <option value="<%= c %>" <%= search.campus === c ? "selected" : "" %>><%= campusLabel(c) %></option>
+        <% }) %>
+      </select>
+    </div>
+    <% if (!student) { %>
+      <div class="field">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          <option value="">Any</option>
+          <% STATUSES.forEach(function (s) { %>
+            <option value="<%= s %>" <%= search.status === s ? "selected" : "" %>><%= statusLabel(s) %></option>
+          <% }) %>
+        </select>
+      </div>
+    <% } %>
+    <div class="filter-actions">
+      <button class="btn" type="submit">Search</button>
+      <a class="btn btn-ghost" href="/desk">Clear</a>
+    </div>
+  </form>
+
+  <p class="showing">Showing <%= showing %><%= student ? " waiting" : " of " + stats.total %></p>
+
+  <% if (!items.length) { %>
+    <p class="empty"><%= student ? "Nothing is waiting that matches this search." : "Nothing matches. Clear the search, or log something that was just handed in." %></p>
+  <% } %>
+
+  <section class="cards">
+    <% items.forEach(function (item) { %>
+      <article class="card status-<%= item.status %>">
+        <div class="card-top">
+          <span class="pill pill-<%= item.status %>"><%= item.statusLabel %></span>
+          <span class="code"><%= item.code %></span>
+        </div>
+        <h2><a href="/desk/<%= item.code %>"><%= item.name %></a></h2>
+        <p class="meta"><%= item.categoryLabel %> · <%= item.placeLabel %></p>
+        <p class="when">Found <%= item.foundLabel %> · <%= item.campusLabel %><% if (!student && item.spot) { %> · <%= item.spot %><% } %></p>
+      </article>
+    <% }) %>
+  </section>
+</main>
+<%- include("partials/foot") %>

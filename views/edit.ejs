@@ -1,0 +1,13 @@
+<%- include("partials/head") %>
+<%- include("partials/nav") %>
+<main class="wrap narrow">
+  <a class="back" href="<%= mode === 'create' ? '/desk' : '/desk/' + values.code %>">Back</a>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow"><%= mode === "create" ? "Create" : "Update" %></p>
+      <h1><%= mode === "create" ? "Log a found item" : "Edit " + values.name %></h1>
+    </div>
+  </header>
+  <%- include("partials/item-form") %>
+</main>
+<%- include("partials/foot") %>
